@@ -1,0 +1,7 @@
+gtest/build
+include/
+lib/
+*.o
+
+# EXE
+run_tests
