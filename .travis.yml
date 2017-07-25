@@ -1,4 +1,4 @@
-language: c
+language: cpp
 
 addons:
   apt:
@@ -6,8 +6,6 @@ addons:
     - cmake
     - make
     - automake
-
-compiler: gcc
 
 script: make test
 

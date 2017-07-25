@@ -3,6 +3,7 @@ include/
 lib/
 *.o
 *.gcno
+*.gcda
 *.a
 *.so
 *.so.*
