@@ -33,7 +33,7 @@ all: $(LIB_STATIC)
 $(LIB_STATIC): $(OBJS)
 	$(AR) rcs $(LIB_STATIC) $(OBJS)
 
-$(OBJS): %.o:%.c
+$(OBJS): %.o:%.c $(LIB_PATH)/$(LIB_UV)
 	$(CC) $(C_FLAGS) -c $< -o $@
 
 clean:
@@ -41,10 +41,10 @@ clean:
 
 test: $(TEST_EXE)
 
-$(TEST_EXE): $(TEST_OBJS) $(LIB_STATIC) $(LIB_PATH)/$(LIB_GTEST)
+$(TEST_EXE): $(TEST_OBJS) $(LIB_STATIC)
 	$(CXX) -o $(TEST_EXE) $(TEST_OBJS) $(TEST_LD_FLAGS)
 
-$(TEST_OBJS): %.o:%.cpp
+$(TEST_OBJS): %.o:%.cpp $(LIB_PATH)/$(LIB_GTEST)
 	$(CXX) $(TEST_FLAGS) -c $< -o $@
 
 $(LIB_PATH)/$(LIB_GTEST):
