@@ -3,6 +3,9 @@ include/
 lib/
 *.o
 *.gcno
+*.a
+*.so
+*.so.*
 
 # EXE
 run_tests
