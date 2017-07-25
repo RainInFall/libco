@@ -25,6 +25,8 @@ LIB_PATH = lib
 
 LIB_GTEST = libgtest_main.a
 
+LIB_UV = libuv.a
+
 all: $(LIB_STATIC)
 
 $(LIB_STATIC): $(OBJS)
@@ -46,3 +48,6 @@ $(TEST_OBJS): %.o:%.cpp
 
 $(LIB_PATH)/$(LIB_GTEST):
 	gtest/build.sh
+
+$(LIB_PATH)/$(LIB_UV):
+	libuv/build.sh
