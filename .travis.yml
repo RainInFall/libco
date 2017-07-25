@@ -1,0 +1,6 @@
+language: c
+install: apt-get install make automake
+compiler: gcc
+script: make test
+after_success:
+  - ./run_tests

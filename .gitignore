@@ -2,6 +2,7 @@ gtest/build
 include/
 lib/
 *.o
+*.gcno
 
 # EXE
 run_tests

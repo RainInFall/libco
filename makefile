@@ -10,12 +10,13 @@ SRCS = $(wildcard ./src/*.c) $(wildcard ./src/internal/*.c)
 TEST_SRCS = $(wildcard ./test/*.cpp) $(wildcard ./test/internal/*.cpp)
 
 OBJS = $(patsubst %.c,%.o,$(SRCS))
+GCNOS = $(patsubst %.c,%.gcno,$(SRCS))
 TEST_OBJS = $(patsubst %.cpp,%.o,$(TEST_SRCS))
 
-C_FLAGS = -g -Wall $(INCLUD_PATH)
+C_FLAGS = -g -Wall --coverage $(INCLUD_PATH)
 TEST_FLAGS = -g -Wall $(INCLUD_PATH)
 
-TEST_LD_FLAGS = -L ./lib -l gtest_main -l gtest -l pthread -l co
+TEST_LD_FLAGS = -L ./lib -l gtest_main -l gtest -l pthread -l co --coverage
 
 LIB_STATIC = lib/libco.a
 
@@ -36,7 +37,7 @@ $(OBJS): %.o:%.c
 	$(CC) $(C_FLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(OBJS) $(LIB_STATIC) $(TEST_EXE) $(TEST_OBJS)
+	rm -rf $(GCNOS) $(OBJS) $(LIB_STATIC) $(TEST_EXE) $(TEST_OBJS)
 
 test: $(TEST_EXE)
 
