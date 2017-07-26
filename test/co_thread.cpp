@@ -26,6 +26,7 @@ TEST(co_thread_create, success) {
                                 empty_function,
                                 &STACK_SIZE));
 
+  co_thread_join(thread);
   free(thread);
 }
 
@@ -92,42 +93,9 @@ TEST(co_thread_current, success) {
   free(thread);
 }
 
-static void check_thread_switch(void* data) {
-  std::pair<int, co_thread_t*>* pair = (std::pair<int, co_thread_t*>*)data;
-  pair->first += 0x1;
-  co_thread_switch(pair->second);
-  ASSERT_EQ(pair->first, 0x11);
-  pair->first += 0x100;
-}
-
-TEST(co_thread_switch, success) {
-  size_t size = co_thread_size(STACK_SIZE);
-
-  co_thread_t* thread = (co_thread_t*)malloc(size);
-  ASSERT_NE((co_thread_t*)NULL, thread);
-
-  std::pair<int, co_thread_t*> pair = std::make_pair(0, co_thread_current());
-  ASSERT_EQ(0, co_thread_create(thread,
-                                STACK_SIZE,
-                                check_thread_switch,
-                                &pair));
-  ASSERT_EQ(pair.first, 0x1);
-  pair.first += 0x10;
-  co_thread_switch(thread);
-  ASSERT_EQ(pair.first, 0x111);
-
-  free(thread);
-}
-
 static void check_thread_join(void* data) {
   std::pair<int, co_thread_t*>* pair = (std::pair<int, co_thread_t*>*)data;
-  pair->first += 0x01;
-  co_thread_switch(pair->second);
-  pair->first = pair->first * 3 + 2; /* 1x3+2=5 */
-  co_thread_switch(pair->second);
-  pair->first = pair->first * 2 + 3; /* 5x2+3=13 */
-  co_thread_switch(pair->second);
-  pair->first = pair->first * 4 + 5; /* 13x4+5=57 */
+  pair->first = 1;
 }
 
 TEST(co_thread_join, success) {
@@ -142,7 +110,7 @@ TEST(co_thread_join, success) {
                                 check_thread_join,
                                 &pair));
   co_thread_join(thread);
-  ASSERT_EQ(pair.first, 57);
+  ASSERT_EQ(pair.first, 1);
 
   free(thread);
 }

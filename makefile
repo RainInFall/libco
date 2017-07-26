@@ -6,17 +6,18 @@ CXX = $(CROSS_PLATFORM)g++
 INCLUD_PATH = -I ./include
 INCLUD_PATH += -I ./src
 
-SRCS = $(wildcard ./src/*.c) $(wildcard ./src/internal/*.c)
-TEST_SRCS = $(wildcard ./test/*.cpp) $(wildcard ./test/internal/*.cpp)
+SRCS = $(wildcard ./src/*.c) $(wildcard ./src/**/*.c)
+TEST_SRCS = $(wildcard ./test/*.cpp) $(wildcard ./test/**/*.cpp)
 
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 GCNOS = $(patsubst %.c,%.gcno,$(SRCS))
+GCDAS = $(patsubst %.c,%.gcda,$(SRCS))
 TEST_OBJS = $(patsubst %.cpp,%.o,$(TEST_SRCS))
 
 C_FLAGS = -g -Wall --coverage $(INCLUD_PATH)
 TEST_FLAGS = -g -Wall $(INCLUD_PATH)
 
-TEST_LD_FLAGS = -L ./lib -l gtest_main -l gtest -l pthread -l co --coverage
+TEST_LD_FLAGS = -L ./lib -l uv -l gtest_main -l gtest -l pthread -l co --coverage
 
 LIB_STATIC = lib/libco.a
 
@@ -37,7 +38,12 @@ $(OBJS): %.o:%.c $(LIB_PATH)/$(LIB_UV)
 	$(CC) $(C_FLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(GCNOS) $(OBJS) $(LIB_STATIC) $(TEST_EXE) $(TEST_OBJS)
+	rm -rf $(GCDAS) $(GCNOS) $(OBJS) $(LIB_STATIC) $(TEST_EXE) $(TEST_OBJS)
+
+run_test: test
+	./$(TEST_EXE)
+	lcov -c -o coverage/test.info -d src/
+	genhtml coverage/test.info -o coverage
 
 test: $(TEST_EXE)
 

@@ -1,4 +1,6 @@
+
 #include <errno.h>
+#include <stdio.h>
 #include "internal/co_thread.h"
 
 static co_thread_t _co_thread_main;
@@ -8,6 +10,7 @@ int co_thread_init(void) {
   _co_thread_main.entry = NULL;
   _co_thread_main.data = &_co_thread_main;
   _co_thread_main.running = CO_THREAD_RUNNING;
+  _co_thread_main.mutex_link = NULL;
 
   _set_thread_current(&_co_thread_main);
   return 0;
@@ -38,6 +41,7 @@ int co_thread_create(co_thread_t* thread,
   thread->entry = entry;
   thread->data = data;
   thread->running = CO_THREAD_SUSPEND;
+  thread->mutex_link = NULL;
 
   makecontext(&thread->handle, (void (*)(void))co_thread_entry, 1, thread);
 
@@ -59,33 +63,16 @@ co_thread_t* co_thread_current(void) {
   return _get_thread_current();
 }
 
-int co_thread_switch(co_thread_t* next_thread) {
-  co_thread_t* this_thread = co_thread_current();
-
-  if (!co_thread_is_running(next_thread)) {
-    return -1;
-  }
-
-  _set_thread_current(next_thread);
-  if (0 != swapcontext(&this_thread->handle, &next_thread->handle)) {
-    _set_thread_current(this_thread);
-    return errno;
-  }
-  _set_thread_current(this_thread);
-
-  return 0;
-}
-
 int co_thread_yield(void) {
   ucontext_t* next_handle = co_thread_current()->handle.uc_link;
   co_thread_t* next_thread = _get_thread_from_ucontext(next_handle);
-  co_thread_switch(next_thread);
+  _co_thread_switch(next_thread);
 
   return 0;
 }
 
 void co_thread_join(co_thread_t* thread) {
   while (co_thread_is_running(thread)) {
-    co_thread_switch(thread);
+    _co_thread_switch(thread);
   }
 }

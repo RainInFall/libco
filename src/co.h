@@ -2,6 +2,9 @@
 #define __CO_H__
 
 #include "co_thread.h"
+#include "co_lock.h"
+#include "co_loop.h"
+#include "co_tcp.h"
 
 #ifdef __cplusplus
 extern "C" {

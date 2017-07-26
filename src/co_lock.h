@@ -2,6 +2,7 @@
 #define __CO_LOCK_H__
 
 #include <stddef.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +15,12 @@ size_t co_mutex_size(void);
 int co_mutex_create(co_mutex_t* mutex);
 
 void co_mutex_destroy(co_mutex_t* mutex);
+
+bool co_mutex_try_lock(co_mutex_t* mutex);
+
+void co_mutex_lock(co_mutex_t* mutex);
+
+void co_mutex_unlock(co_mutex_t* mutex);
 
 #ifdef __cplusplus
 }

@@ -10,3 +10,7 @@ lib/
 
 # EXE
 run_tests
+
+# test
+coverage
+*.log
