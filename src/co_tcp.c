@@ -5,6 +5,7 @@
 
 struct co_tcp_t {
   uv_tcp_t handle;
+  ssize_t read_status;
 };
 
 typedef struct co_tcp_req_t {
@@ -12,12 +13,21 @@ typedef struct co_tcp_req_t {
   co_thread_t* thread;
 }co_tcp_req_t;
 
+typedef struct co_tcp_read_req_t {
+  ssize_t read_size;
+  size_t buf_size;
+  char* buf;
+  ssize_t status;
+  co_thread_t* thread;
+}co_tcp_read_req_t;
+
 size_t co_tcp_size(void) {
   return sizeof(co_tcp_t);
 }
 
 int co_tcp_init(co_loop_t* loop, co_tcp_t* tcp) {
   tcp->handle.data = NULL;
+  tcp->read_status = 0;
   return uv_tcp_init(&loop->handle, &tcp->handle);
 }
 
@@ -42,7 +52,7 @@ int co_tcp_connect(co_tcp_t* tcp, const struct sockaddr* addr) {
   }
 
   while (req.data != NULL) {
-    _co_thread_switch(_uv_loop_get_co_loop(tcp->handle.loop)->thread);
+    _co_loop_run(tcp->handle.loop);
   }
 
   return req_data.status;
@@ -95,7 +105,7 @@ int co_tcp_accept(co_tcp_t* server, co_tcp_t* client) {
   }
 
   while(NULL != server->handle.data) {
-    _co_thread_switch(_uv_loop_get_co_loop(server->handle.loop)->thread);
+    _co_loop_run(server->handle.loop);
   }
 
   req_data.status = 0;
@@ -104,7 +114,7 @@ int co_tcp_accept(co_tcp_t* server, co_tcp_t* client) {
   server->handle.data = client;
 
   while(client->handle.data != NULL) {
-    _co_thread_switch(_uv_loop_get_co_loop(server->handle.loop)->thread);
+    _co_loop_run(server->handle.loop);
   }
 
   return req_data.status;
@@ -131,7 +141,7 @@ int co_tcp_shutdown(co_tcp_t* tcp) {
   }
 
   while(NULL != req.data) {
-    _co_thread_switch(_uv_loop_get_co_loop(tcp->handle.loop)->thread);
+    _co_loop_run(tcp->handle.loop);
   }
 
   return req_data.status;
@@ -154,6 +164,59 @@ void co_tcp_close(co_tcp_t* tcp) {
   uv_close((uv_handle_t*)&tcp->handle, tcp_close_cb);
 
   while(NULL != tcp->handle.data) {
-    _co_thread_switch(_uv_loop_get_co_loop(tcp->handle.loop)->thread);
+    _co_loop_run(tcp->handle.loop);
   }
+}
+
+static void alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+  co_tcp_read_req_t* req_data = (co_tcp_read_req_t*)handle->data;
+  buf->base = req_data->buf + req_data->read_size;
+  buf->len = req_data->buf_size - req_data->read_size;
+}
+
+static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf) {
+  co_tcp_read_req_t* req_data = (co_tcp_read_req_t*)handle->data;
+  if (nread < 0) {
+    uv_read_stop(handle);
+    req_data->status = nread;
+    handle->data = NULL;
+    _co_thread_switch(req_data->thread);
+    return;
+  }
+
+  req_data->read_size += nread;
+  if (req_data->read_size == req_data->buf_size) {
+    uv_read_stop(handle);
+    req_data->status = 0;
+    handle->data = NULL;
+    _co_thread_switch(req_data->thread);
+  }
+}
+
+ssize_t co_tcp_read(co_tcp_t* tcp, void* buf, size_t size) {
+  if (0 != tcp->read_status) {
+    return tcp->read_status;
+  }
+
+  co_tcp_read_req_t req_data;
+  req_data.thread = co_thread_current();
+  req_data.buf_size = size;
+  req_data.buf = buf;
+
+  tcp->handle.data = &req_data;
+
+  int ret = uv_read_start((uv_stream_t*)&tcp->handle, alloc_cb, read_cb);
+  if (0 != ret) {
+    return ret;
+  }
+
+  while(tcp->handle.data != NULL) {
+    _co_loop_run(tcp->handle.loop);
+  }
+
+  if (0 != req_data.status) {
+    return tcp->read_status = req_data.status;
+  }
+
+  return req_data.read_size;
 }

@@ -10,7 +10,8 @@ int co_thread_init(void) {
   _co_thread_main.entry = NULL;
   _co_thread_main.data = &_co_thread_main;
   _co_thread_main.running = CO_THREAD_RUNNING;
-  _co_thread_main.mutex_link = NULL;
+  _co_thread_main.link[CO_THREAD_PREV] = &_co_thread_main;
+  _co_thread_main.link[CO_THREAD_NEXT] = &_co_thread_main
 
   _set_thread_current(&_co_thread_main);
   return 0;
@@ -73,6 +74,6 @@ int co_thread_yield(void) {
 
 void co_thread_join(co_thread_t* thread) {
   while (co_thread_is_running(thread)) {
-    _co_thread_switch(thread);
+    co_thread_yield();
   }
 }

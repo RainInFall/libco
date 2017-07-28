@@ -15,7 +15,7 @@ int co_loop_init(co_loop_t* loop);
 
 int co_loop_close(co_loop_t* loop);
 
-int co_loop_run(co_loop_t* loop);
+void co_loop_stop(co_loop_t* loop);
 
 #ifdef __cplusplus
 }

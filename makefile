@@ -14,10 +14,10 @@ GCNOS = $(patsubst %.c,%.gcno,$(SRCS))
 GCDAS = $(patsubst %.c,%.gcda,$(SRCS))
 TEST_OBJS = $(patsubst %.cpp,%.o,$(TEST_SRCS))
 
-C_FLAGS = -g -Wall --coverage $(INCLUD_PATH)
+C_FLAGS = -D__DEBUG -g -Wall --coverage $(INCLUD_PATH)
 TEST_FLAGS = -g -Wall $(INCLUD_PATH)
 
-TEST_LD_FLAGS = -L ./lib -l uv -l gtest_main -l gtest -l pthread -l co --coverage
+TEST_LD_FLAGS = -L ./lib -l co -l uv -l gtest_main -l gtest -l pthread --coverage
 
 LIB_STATIC = lib/libco.a
 
@@ -25,16 +25,16 @@ TEST_EXE = run_tests
 
 LIB_PATH = lib
 
-LIB_GTEST = libgtest_main.a
+LIB_GTEST = $(LIB_PATH)/libgtest_main.a
 
-LIB_UV = libuv.a
+LIB_UV = $(LIB_PATH)/libuv.a
 
 all: $(LIB_STATIC)
 
 $(LIB_STATIC): $(OBJS)
 	$(AR) rcs $(LIB_STATIC) $(OBJS)
 
-$(OBJS): %.o:%.c $(LIB_PATH)/$(LIB_UV)
+$(OBJS): %.o:%.c $(LIB_UV)
 	$(CC) $(C_FLAGS) -c $< -o $@
 
 clean:
@@ -50,11 +50,11 @@ test: $(TEST_EXE)
 $(TEST_EXE): $(TEST_OBJS) $(LIB_STATIC)
 	$(CXX) -o $(TEST_EXE) $(TEST_OBJS) $(TEST_LD_FLAGS)
 
-$(TEST_OBJS): %.o:%.cpp $(LIB_PATH)/$(LIB_GTEST)
+$(TEST_OBJS): %.o:%.cpp $(LIB_GTEST) $(LIB_UV)
 	$(CXX) $(TEST_FLAGS) -c $< -o $@
 
-$(LIB_PATH)/$(LIB_GTEST):
+$(LIB_GTEST): gtest/build.sh
 	gtest/build.sh
 
-$(LIB_PATH)/$(LIB_UV):
+$(LIB_UV): libuv/build.sh
 	libuv/build.sh

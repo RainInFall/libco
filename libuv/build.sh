@@ -1,5 +1,5 @@
 cd "$(dirname "$0")"
 ./autogen.sh
-./configure --prefix=`pwd`/..
+./configure  --disable-shared  --enable-shared=no --prefix=`pwd`/..
 make
 make install

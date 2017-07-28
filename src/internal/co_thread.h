@@ -3,6 +3,7 @@
 
 #include <ucontext.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "../co_thread.h"
 
 #ifdef __cplusplus
@@ -17,7 +18,10 @@ struct co_thread_t {
 #define CO_THREAD_RUNNING (1)
 #define CO_THREAD_EXIT (-1)
   uint8_t running;
-  co_thread_t* mutex_link;
+  /* call list */
+#define CO_THREAD_PREV  (0)
+#define CO_THREAD_NEXT  (1)
+  co_thread_t* link[2];
   char stack[1];
 };
 
@@ -27,7 +31,7 @@ co_thread_t* _get_thread_current(void);
 
 co_thread_t* _get_thread_from_ucontext(ucontext_t* context);
 
-int _co_thread_switch(co_thread_t* next_thread);
+int _co_thread_yield(bool queued);
 
 #ifdef __cplusplus
 }

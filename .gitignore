@@ -1,6 +1,6 @@
-gtest/build
-include/
-lib/
+/gtest/build
+/include/
+/lib/
 *.o
 *.gcno
 *.gcda
@@ -9,8 +9,8 @@ lib/
 *.so.*
 
 # EXE
-run_tests
+/run_tests
 
 # test
-coverage
+/coverage/
 *.log

@@ -25,9 +25,6 @@ bool co_thread_is_running(co_thread_t* thread);
 
 co_thread_t* co_thread_current(void);
 
-/*Should not call in main function*/
-int co_thread_yield();
-
 void co_thread_join(co_thread_t* thread);
 
 #ifdef __cplusplus
