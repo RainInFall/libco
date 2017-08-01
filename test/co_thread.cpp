@@ -1,142 +1,85 @@
 #include <cstdlib>
-#include <cstddef>
-#include <utility>
 #include <gtest/gtest.h>
-#include <co.h>
+#include <co_thread.h>
 
-static size_t STACK_SIZE = 64 * 1024;
+const size_t CO_SIZE = co_size();
+const size_t STACK_SIZE = 56 * 1024;
+const size_t CO_THREAED_SIZE = co_thread_size(STACK_SIZE);
 
-TEST(co_thread_size, success) {
-  size_t size = co_thread_size(STACK_SIZE);
-  ASSERT_GE(size, STACK_SIZE);
+static co_t* co_new() {
+  co_t* co = (co_t*)malloc(CO_SIZE);
+  co_init(co);
+
+  return co;
 }
 
-static void empty_function(void* data) {
-  ASSERT_EQ(data, &STACK_SIZE);
+static void co_delete(co_t* co) {
+  free(co);
 }
 
-TEST(co_thread_create, success) {
-  size_t size = co_thread_size(STACK_SIZE);
+static co_thread_t* co_thread_new(co_t* co, void* data = NULL) {
+  co_thread_t* thread = (co_thread_t*)malloc(CO_THREAED_SIZE);
+  co_thread_init(co, thread, data);
 
-  co_thread_t* thread = (co_thread_t*)malloc(size);
-  ASSERT_NE((co_thread_t*)NULL, thread);
+  return thread;
+}
 
-  ASSERT_EQ(0, co_thread_create(thread,
-                                STACK_SIZE,
-                                empty_function,
-                                &STACK_SIZE));
+static void co_thread_delete(co_thread_t* thread) {
+  free(thread);
+}
+
+TEST(co_thread_init, success) {
+  co_t* co = co_new();
+  
+  co_thread_t* thread = (co_thread_t*)malloc(CO_THREAED_SIZE);
+  ASSERT_EQ(0, co_thread_init(co, thread, NULL));
+
+  co_thread_delete(thread);
+
+  co_delete(co);
+}
+
+static void test_thread_create(void* data) {
+  int* call = (int*)data;
+  *call += 1;
+}
+
+
+TEST(co_thread_create_and_join, success) {
+  co_t* co = co_new();
+  int call = 0;
+  co_thread_t* thread = co_thread_new(co, &call);
+
+  ASSERT_EQ(0, co_thread_create(thread, STACK_SIZE, test_thread_create));
 
   co_thread_join(thread);
-  free(thread);
+
+  ASSERT_EQ(1, call);
+
+  co_thread_delete(thread);
+
+  co_delete(co);
 }
 
-static void set_after_call(void* data) {
-  int* called = (int*)data;
-  *called = 1;
-}
+TEST(co_thread_create_and_join, many) {
+  co_t* co = co_new();
+  int call = 0;
+  co_thread_t* threads[100];
+  
+  for (int i =0; i < 100; ++i) {
+    threads[i] = co_thread_new(co, &call);
+    ASSERT_EQ(0, co_thread_create(threads[i], STACK_SIZE, test_thread_create));
+  }
 
-TEST(co_thread_create, entry_called) {
-  size_t size = co_thread_size(STACK_SIZE);
+  for (int i = 0; i < 100; ++i) {
+    co_thread_join(threads[i]);
+  }
 
-  co_thread_t* thread = (co_thread_t*)malloc(size);
-  ASSERT_NE((co_thread_t*)NULL, thread);
+  ASSERT_EQ(100, call);
 
-  int called = 0;
-  ASSERT_EQ(0, co_thread_create(thread,
-                                STACK_SIZE,
-                                set_after_call,
-                                &called));
-  ASSERT_EQ(1, called);
+  for (int i = 0; i < 100; ++i) {
+    co_thread_delete(threads[i]);
+  }
 
-  free(thread);
-}
-
-static void check_thread_running(void* data) {
-  co_thread_t* thread = (co_thread_t*)data;
-  ASSERT_TRUE(co_thread_is_running(thread));
-}
-
-TEST(co_thread_is_running, success) {
-  size_t size = co_thread_size(STACK_SIZE);
-
-  co_thread_t* thread = (co_thread_t*)malloc(size);
-  ASSERT_NE((co_thread_t*)NULL, thread);
-
-  ASSERT_EQ(0, co_thread_create(thread,
-                                STACK_SIZE,
-                                check_thread_running,
-                                thread));
-  ASSERT_FALSE(co_thread_is_running(thread));
-
-  free(thread);
-}
-
-static void check_thread_current(void* data) {
-  co_thread_t* thread = (co_thread_t*)data;
-  ASSERT_EQ(thread, co_thread_current());
-}
-
-TEST(co_thread_current, success) {
-  size_t size = co_thread_size(STACK_SIZE);
-
-  co_thread_t* thread = (co_thread_t*)malloc(size);
-  ASSERT_NE((co_thread_t*)NULL, thread);
-
-  co_thread_t* this_thread = co_thread_current();
-  ASSERT_EQ(0, co_thread_create(thread,
-                                STACK_SIZE,
-                                check_thread_current,
-                                thread));
-  ASSERT_NE(thread, co_thread_current());
-  ASSERT_EQ(this_thread, co_thread_current());
-
-  free(thread);
-}
-
-static void check_thread_join(void* data) {
-  std::pair<int, co_thread_t*>* pair = (std::pair<int, co_thread_t*>*)data;
-  pair->first = 1;
-}
-
-TEST(co_thread_join, success) {
-  size_t size = co_thread_size(STACK_SIZE);
-
-  co_thread_t* thread = (co_thread_t*)malloc(size);
-  ASSERT_NE((co_thread_t*)NULL, thread);
-
-  std::pair<int, co_thread_t*> pair = std::make_pair(0, co_thread_current());
-  ASSERT_EQ(0, co_thread_create(thread,
-                                STACK_SIZE,
-                                check_thread_join,
-                                &pair));
-  co_thread_join(thread);
-  ASSERT_EQ(pair.first, 1);
-
-  free(thread);
-}
-
-static void check_thread_yield(void* data) {
-  int* called = (int*)data;
-  *called = 1;
-  co_thread_yield();
-  *called = 2;
-}
-
-TEST(co_thread_yield, success) {
-  size_t size = co_thread_size(STACK_SIZE);
-
-  co_thread_t* thread = (co_thread_t*)malloc(size);
-  ASSERT_NE((co_thread_t*)NULL, thread);
-
-  int called = 0;
-  ASSERT_EQ(0, co_thread_create(thread,
-                                STACK_SIZE,
-                                check_thread_yield,
-                                &called));
-
-  ASSERT_EQ(1, called);
-  co_thread_join(thread);
-  ASSERT_EQ(2, called);
-
-  free(thread);
+  co_delete(co);
 }

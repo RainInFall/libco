@@ -1,11 +1,13 @@
+#include <cstdlib>
 #include <gtest/gtest.h>
 #include <co.h>
 
-class CoInit: public ::testing::Environment {
-public:
-  virtual void SetUp() {
-    ASSERT_EQ(0, co_init());
-  }
-};
+const size_t CO_SIZE = co_size();
 
-static ::testing::Environment* dummy = ::testing::AddGlobalTestEnvironment(new CoInit());
+TEST(co_init, success) {
+  co_t* co = (co_t*)malloc(CO_SIZE);
+  ASSERT_EQ(0, co_init(co));
+
+  free(co);
+  co = NULL;
+}

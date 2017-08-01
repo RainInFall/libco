@@ -1,79 +1,82 @@
-
+#include <assert.h>
 #include <errno.h>
-#include <stdio.h>
+#include <uv.h>
 #include "internal/co_thread.h"
+#include "internal/co.h"
+#include "co_list.h"
 
-static co_thread_t _co_thread_main;
+size_t co_thread_size(size_t size_stack) {
+  return sizeof(co_thread_t*) + size_stack;
+}
 
-int co_thread_init(void) {
-  /* handle will be settted when swapcontext */
-  _co_thread_main.entry = NULL;
-  _co_thread_main.data = &_co_thread_main;
-  _co_thread_main.running = CO_THREAD_RUNNING;
-  _co_thread_main.link[CO_THREAD_PREV] = &_co_thread_main;
-  _co_thread_main.link[CO_THREAD_NEXT] = &_co_thread_main
+void co_add_thread(co_t* co, co_thread_t* thread) {
+  co_list_shift(co->current_thread, thread);
+}
 
-  _set_thread_current(&_co_thread_main);
+void co_remove_thread(co_t* co, co_thread_t* thread) {
+  co_list_remove(thread);
+}
+
+static void co_thread_entry(co_thread_t* thread, co_thread_func_t entry, void* data) {
+
+  thread->co->current_thread = thread;
+  thread->status = CO_THREAD_STATUS_RUNNING;
+  entry(thread->data);
+  thread->status = CO_THREAD_STATUS_FINISH;
+}
+
+int co_thread_init(co_t* co, co_thread_t* thread, void* data) {
+  thread->co = co;
+  thread->data = data;
+
   return 0;
 }
 
-size_t co_thread_size(size_t stack_size){
-  return stack_size + sizeof(co_thread_t);
-}
-
-void co_thread_entry(co_thread_t* thread) {
-  thread->running = CO_THREAD_RUNNING;
-  thread->entry(thread->data);
-  thread->running = CO_THREAD_EXIT;
-}
-
-int co_thread_create(co_thread_t* thread,
-                     size_t stack_size,
-                     co_thread_func_t entry,
-                     void* data) {
-  co_thread_t* this_thread = co_thread_current();
-
-  getcontext(&thread->handle);
+int co_thread_create(co_thread_t* thread, size_t stack_size, co_thread_func_t entry) {  
+  if (0 != getcontext(&thread->handle)) {
+    return uv_translate_sys_error(errno);
+  }
   thread->handle.uc_stack.ss_sp = thread->stack;
   thread->handle.uc_stack.ss_size = stack_size;
-  thread->handle.uc_stack.ss_flags = 0;
-  thread->handle.uc_link = &this_thread->handle;
+  thread->handle.uc_link = &thread->co->schedule_handle;
+  
+  makecontext(&thread->handle, (void(*)(void))co_thread_entry, 2, thread, entry);
 
-  thread->entry = entry;
-  thread->data = data;
-  thread->running = CO_THREAD_SUSPEND;
-  thread->mutex_link = NULL;
-
-  makecontext(&thread->handle, (void (*)(void))co_thread_entry, 1, thread);
-
-  _set_thread_current(thread);
-  if (0 != swapcontext(&this_thread->handle, &thread->handle)) {
-    _set_thread_current(this_thread);
-    return errno;
-  }
-  _set_thread_current(this_thread);
-
-  return 0;
-}
-
-bool co_thread_is_running(co_thread_t* thread) {
-  return thread->running == CO_THREAD_RUNNING;
-}
-
-co_thread_t* co_thread_current(void) {
-  return _get_thread_current();
-}
-
-int co_thread_yield(void) {
-  ucontext_t* next_handle = co_thread_current()->handle.uc_link;
-  co_thread_t* next_thread = _get_thread_from_ucontext(next_handle);
-  _co_thread_switch(next_thread);
+  co_add_thread(thread->co, thread);
+  co_thread_switch(thread);
 
   return 0;
 }
 
 void co_thread_join(co_thread_t* thread) {
-  while (co_thread_is_running(thread)) {
-    co_thread_yield();
+  while(thread->status != CO_THREAD_STATUS_FINISH) {
+    co_thread_yield(thread->co);
   }
+}
+
+void co_thread_switch(co_thread_t* thread) {
+  co_thread_t* current = co_thread_current(thread->co);
+  assert(current != thread);
+
+  thread->co->current_thread = thread;
+  if (0 != swapcontext(&current->handle, &thread->handle)) {
+    thread->co->current_thread = current;
+    assert(NULL);
+    return;
+  }
+
+  thread->co->current_thread = current;
+}
+
+void co_thread_yield(co_t* co) {
+  co_thread_t* current = co_thread_current(co);
+
+  if (0 != swapcontext(&current->handle, &co->schedule_handle)) {
+    assert(NULL);
+    return;
+  }
+}
+
+co_thread_t* co_thread_current(co_t* co) {
+  return co->current_thread;
 }
