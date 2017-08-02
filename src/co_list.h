@@ -36,12 +36,16 @@ extern "C" {
     (node)->link_size = (entry)->link_size;\
   } while(0)
 
-#define co_list_remove(node) \
+#define co_list_remove(entry, node) \
     do {\
       co_list_next(co_list_prev(node)) = co_list_next(node);\
       co_list_prev(co_list_next(node)) = co_list_prev(node);\
       *(node)->link_size -= 1;\
+      (entry) = (entry) != (node) ? (entry) :\
+        *(entry)->link_size == 0 ? NULL : co_list_next(entry);\
     } while (0)
+
+#define co_list_size(node) (*(node)->link_size)
 
 #ifdef __cplusplus
 }

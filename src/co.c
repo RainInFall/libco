@@ -27,26 +27,49 @@ static void co_schedule(co_t* co) {
 
   if (co->status == CO_STATUS_RUNNING) {
     link_size = co->link_size;
+    assert(0 != link_size);
+    /*
+      The current_thread just head of the schedule list, not the current threas here!
+    */
     for(i = 0, thread = co->current_thread; i < link_size; ++i, thread = co_list_next(thread)) {      
-      if (thread->status == CO_THREAD_STATUS_FINISH) {
-        co_list_remove(thread);
-      } else if (thread->status == CO_THREAD_STATUS_RUNNING) {
-        co->current_thread = thread;
-        setcontext(&thread->handle);
-      } else {
-        assert(NULL);
-      }
+      switch (thread->status) {
+        case CO_THREAD_STATUS_FINISH: {
+          co_list_remove(co->current_thread, thread);
+          break;
+        }
+        case CO_THREAD_STATUS_RUNNING: {
+          /* Reset valid current thread */
+          co->current_thread = thread;
+          setcontext(&thread->handle);
+          break;
+        }
+        case CO_THREAD_STATUS_SUSPEND: {
+          break;
+        }
+        default: {
+          assert(NULL);
+        }
+      } /* switch  */
     }
+    /*  Could not find any running thread */
+    
   } else if (co->status == CO_STATUS_NONE) {
     co->status = CO_STATUS_RUNNING;
     if (0 != setcontext(&co->main_thread.handle)) {
       assert(NULL);
     }
   }
+  /* TODO:Finishing process */
+  assert(co->status == CO_STATUS_FINISH);
+}
 
-  assert(co->status != CO_STATUS_FINISH);
+int co_deinit(co_t* co) {
+  co->status = CO_STATUS_FINISH;
+  if (0 != swapcontext(&co->main_thread.handle, &co->schedule_handle)) {
+    return uv_translate_sys_error(errno);
+  }
 
-  co->status = CO_STATUS_RUNNING;
+  return 0;
 }
 
 int co_init(co_t* co) {
@@ -73,4 +96,23 @@ int co_init(co_t* co) {
   }
 
   return 0;
+}
+
+void co_add_thread(co_t* co, co_thread_t* thread) {
+  assert(co->current_thread != NULL);
+  assert(!co_contains_thread(co->current_thread, thread));
+
+  co_list_shift(co->current_thread, thread);
+}
+
+void co_remove_thread(co_t* co, co_thread_t* thread) {
+  assert(co->link_size > 1);
+
+  co_list_remove(co->current_thread, thread);
+}
+
+void co_set_current(co_t* co, co_thread_t* thread) {
+  assert(co_contains_thread(co->current_thread, thread));
+
+  co->current_thread = thread;
 }

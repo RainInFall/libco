@@ -46,12 +46,13 @@ TEST(co_list_shift, success) {
 }
 
 TEST(co_list_remove, success) {
-  node_t node1, node2;
+  node_t node1, node2, *head;
   size_t size = 0;
+  head = &node2;
   //co_list_init(&node1);
-  co_list_init(&node2, &size);
-  co_list_shift(&node2, &node1);
-  co_list_remove(&node2);
+  co_list_init(head, &size);
+  co_list_shift(head, &node1);
+  co_list_remove(head, &node2);
 
   ASSERT_EQ(co_list_prev(&node1), (&node1));
   ASSERT_EQ(co_list_next(&node1), (&node1));
@@ -59,9 +60,10 @@ TEST(co_list_remove, success) {
 }
 
 TEST(co_list_remove, one_node_list) {
-  node_t node;
+  node_t node, *head;
   size_t size = 0;
-  co_list_init(&node, &size);
-  co_list_remove(&node);
+  head = &node;
+  co_list_init(head, &size);
+  co_list_remove(head, &node);
   ASSERT_EQ(0, size);
 }

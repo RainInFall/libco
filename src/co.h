@@ -15,6 +15,8 @@ size_t co_size(void);
 
 int co_init(co_t* co);
 
+int co_deinit(co_t* co);
+
 #ifdef __cplusplus
 }
 #endif

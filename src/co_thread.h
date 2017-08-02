@@ -22,8 +22,6 @@ void co_thread_join(co_thread_t* thread);
 
 co_thread_t* co_thread_current(co_t* co);
 
-void co_thread_yield(co_t* co);
-
 #ifdef __cplusplus
 }
 #endif

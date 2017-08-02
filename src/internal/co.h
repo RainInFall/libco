@@ -21,6 +21,10 @@ struct co_t {
   char schedule_stack[CO_SCHEDULE_STACK_SIZE];
 };
 
-void co_thread_switch(co_thread_t* thread);
+void co_add_thread(co_t* co, co_thread_t* thread);
+
+void co_remove_thread(co_t* co, co_thread_t* thread);
+
+void co_set_current(co_t* co, co_thread_t* thread);
 
 #endif /* __CO_INTERNAL_H__ */
