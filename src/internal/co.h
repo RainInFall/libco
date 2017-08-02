@@ -23,6 +23,4 @@ struct co_t {
 
 void co_thread_switch(co_thread_t* thread);
 
-void co_thread_yield(co_t* co);
-
 #endif /* __CO_INTERNAL_H__ */

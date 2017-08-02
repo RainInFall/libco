@@ -93,6 +93,11 @@
         "stl_tempbuf.h": "c",
         "stl_tree.h": "c",
         "initializer_list": "c",
-        "if.h": "c"
+        "if.h": "c",
+        "gtest-death-test-internal.h": "c",
+        "gtest-param-util.h": "c",
+        "string.h": "c",
+        "strings.h": "c",
+        "libio.h": "c"
     }
 }

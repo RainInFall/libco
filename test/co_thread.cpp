@@ -44,7 +44,6 @@ static void test_thread_create(void* data) {
   *call += 1;
 }
 
-
 TEST(co_thread_create_and_join, success) {
   co_t* co = co_new();
   int call = 0;
@@ -79,6 +78,66 @@ TEST(co_thread_create_and_join, many) {
 
   for (int i = 0; i < 100; ++i) {
     co_thread_delete(threads[i]);
+  }
+
+  co_delete(co);
+}
+
+static void test_thread_create_yield(void* data) {
+  co_t* co = (co_t*)data;
+  co_thread_yield(co);
+}
+
+TEST(co_thread_create_and_join, yield) {
+  co_t* co = co_new();
+  co_thread_t* threads[100];
+  
+  for (int i =0; i < 100; ++i) {
+    threads[i] = co_thread_new(co, co);
+    ASSERT_EQ(0, co_thread_create(threads[i], STACK_SIZE, test_thread_create_yield));
+  }
+
+  for (int i = 0; i < 100; ++i) {
+    co_thread_join(threads[i]);
+  }
+
+  for (int i = 0; i < 100; ++i) {
+    co_thread_delete(threads[i]);
+  }
+
+  co_delete(co);
+}
+
+typedef struct {
+  int index;
+  co_thread_t* threads[100];
+} test_thread_recursion_ctx_t;
+
+static void test_thread_create_recursion(void* data) {
+  test_thread_recursion_ctx_t* ctx = (test_thread_recursion_ctx_t*)data;
+  ctx->index++;
+  
+  if (ctx->index < 100) {
+    co_thread_create(ctx->threads[ctx->index], STACK_SIZE, test_thread_create_recursion);
+  }
+}
+
+TEST(co_thread_create_and_join, recursion) {
+  co_t* co = co_new();
+  test_thread_recursion_ctx_t ctx;
+  
+  for (int i = 0; i < 100; ++i) {
+    ctx.threads[i] = co_thread_new(co, &ctx);
+  }
+  ctx.index = 0;
+  ASSERT_EQ(0, co_thread_create(ctx.threads[ctx.index], STACK_SIZE, test_thread_create_recursion));
+
+  for (int i = 0; i < 100; ++i) {
+    co_thread_join(ctx.threads[i]);
+  }
+
+  for (int i = 0; i < 100; ++i) {
+    co_thread_delete(ctx.threads[i]);
   }
 
   co_delete(co);

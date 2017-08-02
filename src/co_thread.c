@@ -6,7 +6,7 @@
 #include "co_list.h"
 
 size_t co_thread_size(size_t size_stack) {
-  return sizeof(co_thread_t*) + size_stack;
+  return sizeof(co_thread_t) + size_stack;
 }
 
 void co_add_thread(co_t* co, co_thread_t* thread) {
