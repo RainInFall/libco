@@ -3,8 +3,13 @@
 
 #include <ucontext.h>
 #include <stdbool.h>
+#include <uv.h>
 #include "../co.h"
 #include "../co_thread.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct co_thread_t {
   ucontext_t handle;
@@ -20,6 +25,8 @@ struct co_thread_t {
   /* join part */
   co_thread_t* join_link;
   size_t join_link_size;
+  /* timer for sleep */
+  uv_timer_t sleep_timer;
   /* stack */
   char stack[1];
 };
@@ -37,5 +44,9 @@ void co_thread_replace(co_thread_t* thread, co_thread_suspend_cb_t cb, void* dat
 bool co_thread_is_suspend(co_thread_t* thread);
 
 bool co_contains_thread(co_thread_t* head, co_thread_t* new_thread);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __CO_INTERNAL_THREAD_H__ */

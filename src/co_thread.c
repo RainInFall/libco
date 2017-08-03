@@ -2,26 +2,51 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <uv.h>
+#include "co_list.h"
 #include "internal/co_thread.h"
 #include "internal/co.h"
 #include "internal/co_error.h"
-#include "co_list.h"
+#include "internal/co_loop.h"
 
 size_t co_thread_size(size_t size_stack) {
   return sizeof(co_thread_t) + size_stack;
 }
 
+static void close_thread_sleep_timer_cb(uv_handle_t* handle) {
+  co_thread_t* thread = (co_thread_t*) handle->data;
+  co_thread_resume(thread);
+}
+
 static void co_thread_entry(co_thread_t* thread, co_thread_func_t entry, void* data) {
-  thread->co->current_thread = thread;
+  int i;
+  co_thread_t* join_thread;
+
+  assert(co_thread_current(thread->co) == thread);
+
   thread->status = CO_THREAD_STATUS_RUNNING;
   entry(thread->data);
   thread->status = CO_THREAD_STATUS_FINISH;
+
+  /* thread end, release the join thread */
+  join_thread = thread->join_link;
+  for (i = 0; i < thread->join_link_size; ++i) {
+    co_thread_schedule(join_thread);
+    join_thread = co_list_next(join_thread);
+  }
+  /* close sleep timer */
+  if (thread->sleep_timer.data) {
+    uv_close((uv_handle_t*)&thread->sleep_timer, close_thread_sleep_timer_cb);
+    co_thread_suspend(co_loop_get_co(co_loop_get_from_uv_loop(thread->sleep_timer.loop)), NULL, NULL);
+  }
 }
 
 int co_thread_init(co_t* co, co_thread_t* thread, void* data) {
   thread->co = co;
+  thread->status = CO_THREAD_STATUS_SUSPEND;
   thread->data = data;
   thread->join_link = NULL;
+  thread->join_link_size = 0;
+  thread->sleep_timer.data = NULL; /* mark uninitial */
 
   return 0;
 }
@@ -62,8 +87,11 @@ bool co_contains_thread(co_thread_t* head, co_thread_t* new_thread) {
 }
 
 void co_thread_resume(co_thread_t* thread) {
-  co_thread_t* current = co_thread_current(thread->co);
+  assert(thread->status == CO_THREAD_STATUS_SUSPEND);
 
+  co_thread_t* current = co_thread_current(thread->co);
+  
+  thread->status = CO_THREAD_STATUS_RUNNING;
   co_add_thread(thread->co, thread);
 
   thread->co->current_thread = thread;

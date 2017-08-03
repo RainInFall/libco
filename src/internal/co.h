@@ -9,6 +9,10 @@
 #define CO_SCHEDULE_STACK_SIZE (56 * 1024)
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct co_t {
   co_thread_t main_thread;
   co_thread_t* current_thread;
@@ -26,5 +30,13 @@ void co_add_thread(co_t* co, co_thread_t* thread);
 void co_remove_thread(co_t* co, co_thread_t* thread);
 
 void co_set_current(co_t* co, co_thread_t* thread);
+
+size_t co_thread_runing_count(co_t* co);
+
+bool co_thread_yield(co_t* co);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __CO_INTERNAL_H__ */

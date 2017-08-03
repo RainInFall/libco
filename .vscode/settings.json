@@ -59,6 +59,11 @@
         "signal.c": "cpp",
         "blackhole-server.c": "cpp",
         "test-ipc-send-recv.c": "cpp",
-        "test-signal.c": "cpp"
+        "test-signal.c": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp",
+        "initializer_list": "cpp",
+        "cerrno": "cpp",
+        "functional": "cpp"
     }
 }

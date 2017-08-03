@@ -9,6 +9,10 @@
 #define CO_LOOP_STACK_SIZE (56 * 1024)
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct co_loop_t {
   uv_loop_t handle;
 #define CO_LOOP_STATUS_NONE (-1)
@@ -24,5 +28,13 @@ struct co_loop_t {
 void co_loop_run(co_loop_t* loop);
 
 co_loop_t* co_loop_get_from_uv_loop(uv_loop_t* loop);
+
+co_t* co_loop_get_co(co_loop_t* loop);
+
+co_t* uv_loop_get_co(uv_loop_t* loop);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __CO_INTERNAL_LOOP_H__ */
