@@ -60,7 +60,20 @@ static co_thread_t* co_thread_new(co_t* co, void* data = NULL) {
 
   return thread;
 }
+/*
+const size_t MUTEX_SIZE = co_mutex_size();
+static co_mutex_new(co_t* co) {
+  co_mutex_t* mutex = (co_mutex_t*)malloc(MUTEX_SIZE);
+  co_mutex_create(co, mutex);
 
+  return mutex;
+}
+
+const size_t co_mutex_delete(co_mutex_t* mutex) {
+  co_mutex_destroy(mutex);
+  free(mutex);
+}
+*/
 static void co_thread_delete(co_thread_t* thread) {
   free(thread);
 }
@@ -130,6 +143,55 @@ TEST(co_tcp_connect, success) {
   ASSERT_EQ(0, co_thread_create(thread, STACK_SIZE, test_tcp_connect));
 
   ASSERT_EQ(0, co_tcp_connect(client, (const struct sockaddr *) &addr));
+
+  co_thread_join(thread);
+  co_thread_delete(thread); 
+
+  co_tcp_delete(server);
+  co_tcp_delete(client);
+
+  co_loop_delete(loop);
+  co_delete(co);
+}
+
+static void test_tcp_write(void* data) {
+  co_tcp_t* server = (co_tcp_t*)data;
+  co_tcp_t* client = co_tcp_new(co_tcp_get_loop(server));
+
+  assert(0 == co_tcp_accept(server, client));
+
+  char buf[4];
+  assert(4 == co_tcp_read(client, buf, 4));
+  assert(0 == strncmp("ping", buf, 4));
+
+  assert(0 == co_tcp_write(client, "pong", 4));
+
+  co_tcp_close(client);
+  co_tcp_delete(client);
+}
+
+TEST(co_tcp_write, success) {
+  co_t* co = co_new();
+  co_loop_t* loop = co_loop_new(co);
+
+  co_tcp_t* client = co_tcp_new(loop);
+  co_tcp_t* server = co_tcp_new(loop);
+
+  struct sockaddr_in addr;
+
+  ASSERT_EQ(0, co_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+
+  ASSERT_EQ(0, co_tcp_bind(server, (const struct sockaddr*) &addr));
+  ASSERT_EQ(0, co_tcp_listen(server, 128));
+
+  co_thread_t* thread = co_thread_new(co, server);
+  ASSERT_EQ(0, co_thread_create(thread, STACK_SIZE, test_tcp_write));
+
+  ASSERT_EQ(0, co_tcp_connect(client, (const struct sockaddr *) &addr));
+  ASSERT_EQ(0, co_tcp_write(client, "ping", 4));
+  char buf[4];
+  ASSERT_EQ(4, co_tcp_read(client, buf, 4));
+  ASSERT_STREQ("pong", buf);
 
   co_thread_join(thread);
   co_thread_delete(thread); 

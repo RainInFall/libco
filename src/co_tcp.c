@@ -16,6 +16,12 @@ struct co_tcp_read_req_t{
   size_t *link_size;
 };
 
+typedef struct co_tcp_write_req_t co_tcp_write_req_t;
+struct co_tcp_write_req_t {
+  co_thread_t* thread;
+  int ret;
+};
+
 typedef struct co_tcp_accept_req_t co_tcp_accept_req_t;
 struct co_tcp_accept_req_t {
   co_thread_t* thread;
@@ -237,24 +243,24 @@ void co_tcp_close(co_tcp_t* tcp) {
   co_thread_suspend(co, NULL, NULL);
 }
 
-static void connect_cb(uv_connect_t* connect, int status) {
-  co_tcp_connect_req_t *req = (co_tcp_connect_req_t*)connect->data;
+static void connect_cb(uv_connect_t* connect_req, int status) {
+  co_tcp_connect_req_t *req = (co_tcp_connect_req_t*)connect_req->data;
   
   req->status = status;
   co_thread_schedule(req->thread);
 }
 
 int co_tcp_connect(co_tcp_t* client, const struct sockaddr* addr) {
-  uv_connect_t connect;
+  uv_connect_t connect_req;
   co_tcp_connect_req_t req;
   co_t* co = uv_loop_get_co(client->handle.loop);
   int ret;
 
-  connect.data = &req;
+  connect_req.data = &req;
   req.thread = co_thread_current(co);
   req.status = 0;
   
-  ret = uv_tcp_connect(&connect, &client->handle, addr, connect_cb);
+  ret = uv_tcp_connect(&connect_req, &client->handle, addr, connect_cb);
   if (0 != ret) {
     return ret;
   }
@@ -262,6 +268,32 @@ int co_tcp_connect(co_tcp_t* client, const struct sockaddr* addr) {
   co_thread_suspend(co, NULL, NULL);
   
   return req.status;
+}
+
+static void tcp_write_cb(uv_write_t* write_req, int status) {
+  co_tcp_write_req_t* req = (co_tcp_write_req_t*)write_req->data;
+
+  req->ret = status;
+  co_thread_schedule(req->thread);
+}
+
+int co_tcp_write(co_tcp_t* tcp, void* data, size_t len) {
+  uv_write_t write_req;
+  co_tcp_write_req_t req;
+  co_t* co = uv_loop_get_co(tcp->handle.loop);
+  uv_buf_t bufs[1] = { uv_buf_init(data, len) };
+
+  write_req.data = &req;
+  req.thread = co_thread_current(co); 
+
+  req.ret = uv_write(&write_req, (uv_stream_t*)tcp, bufs, 1, tcp_write_cb);
+  if (0 != req.ret) {
+    return req.ret;
+  }
+
+  co_thread_suspend(co, NULL, NULL);
+
+  return req.ret;
 }
 
 co_loop_t* co_tcp_get_loop(co_tcp_t* tcp) {
