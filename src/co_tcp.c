@@ -26,6 +26,12 @@ struct co_tcp_accept_req_t {
   size_t *link_size;
 };
 
+typedef struct co_tcp_connect_req_t co_tcp_connect_req_t;
+struct co_tcp_connect_req_t {
+  co_thread_t* thread;
+  int status;
+};
+
 struct co_tcp_t {
   uv_tcp_t handle;
   /* close */
@@ -229,4 +235,35 @@ void co_tcp_close(co_tcp_t* tcp) {
   uv_close((uv_handle_t*)&tcp->handle, tcp_close_cb);
 
   co_thread_suspend(co, NULL, NULL);
+}
+
+static void connect_cb(uv_connect_t* connect, int status) {
+  co_tcp_connect_req_t *req = (co_tcp_connect_req_t*)connect->data;
+  
+  req->status = status;
+  co_thread_schedule(req->thread);
+}
+
+int co_tcp_connect(co_tcp_t* client, const struct sockaddr* addr) {
+  uv_connect_t connect;
+  co_tcp_connect_req_t req;
+  co_t* co = uv_loop_get_co(client->handle.loop);
+  int ret;
+
+  connect.data = &req;
+  req.thread = co_thread_current(co);
+  req.status = 0;
+  
+  ret = uv_tcp_connect(&connect, &client->handle, addr, connect_cb);
+  if (0 != ret) {
+    return ret;
+  }
+
+  co_thread_suspend(co, NULL, NULL);
+  
+  return req.status;
+}
+
+co_loop_t* co_tcp_get_loop(co_tcp_t* tcp) {
+  return co_loop_get_from_uv_loop(tcp->handle.loop);
 }
